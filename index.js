@@ -107,26 +107,49 @@ async function callEmbeddingAPI(text) {
   return response.data.data[0].embedding;
 }
 
+// FAISS 서버 호출 함수
 async function querySimilarItems(embeddingVector) {
-  const response = await axios.post(
-    `${SEARCH_ENDPOINT}/indexes/${INDEX_NAME}/docs/search?api-version=2023-11-01`,
-    {
-      vector: {
-        value: embeddingVector,
-        fields: 'contentVector',
-        k: 5
-      },
-      select: 'imageUrl'
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': SEARCH_API_KEY
-      }
-    }
-  );
-  return response.data.value;
+  const FAISS_SEARCH_URL = 'https://faiss-search-api.azurewebsites.net/api/faiss_search';
+
+  try {
+    console.log("🔍 검색 시작 (Node.js에서 벡터 전달)");
+    const searchRes = await axios.post(FAISS_SEARCH_URL, {
+      vector: embeddingVector
+    });
+
+    console.log("🔍 Search result:", searchRes.data);
+
+    // searchRes.data는 유사한 상품 리스트 반환 (예: [{image_url: "..."}])
+    return searchRes.data.map(item => ({
+      imageUrl: item.image_url  // FAISS 검색 결과에서 image_url 추출
+    }));
+
+  } catch (err) {
+    console.error("❌ FAISS 검색 오류:", err.response ? err.response.data : err.message);
+    return [];
+  }
 }
+
+// async function querySimilarItems(embeddingVector) {
+//   const response = await axios.post(
+//     `${SEARCH_ENDPOINT}/indexes/${INDEX_NAME}/docs/search?api-version=2023-11-01`,
+//     {
+//       vector: {
+//         value: embeddingVector,
+//         fields: 'contentVector',
+//         k: 5
+//       },
+//       select: 'imageUrl'
+//     },
+//     {
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'api-key': SEARCH_API_KEY
+//       }
+//     }
+//   );
+//   return response.data.value;
+// }
 
 app.post('/api/full-process', async (req, res) => {
   const imageUrl = req.body.imageUrl;
@@ -146,14 +169,14 @@ app.post('/api/full-process', async (req, res) => {
 
     const embedding = await callEmbeddingAPI(refinedText);
 
-    //const similarItems = await querySimilarItems(embedding);
+    const similarItems = await querySimilarItems(embedding);
 
-    const similarItems = [
-      { imageUrl: 'https://image.thehyundai.com/static/3/8/9/09/A2/hnm40A2099836_4_1600.jpg' },
-      { imageUrl: 'https://image.thehyundai.com/static/2/6/2/07/A2/hnm40A2072625_6_1600.jpg' },
-      { imageUrl: 'https://image.thehyundai.com/static/2/6/2/07/A2/hnm40A2072626_5_1600.jpg' },
-      { imageUrl: 'https://image.thehyundai.com/static/2/2/8/07/A2/hnm40A2078228_6_1600.jpg' }
-    ];
+    // const similarItems = [
+    //   { imageUrl: 'https://image.thehyundai.com/static/3/8/9/09/A2/hnm40A2099836_4_1600.jpg' },
+    //   { imageUrl: 'https://image.thehyundai.com/static/2/6/2/07/A2/hnm40A2072625_6_1600.jpg' },
+    //   { imageUrl: 'https://image.thehyundai.com/static/2/6/2/07/A2/hnm40A2072626_5_1600.jpg' },
+    //   { imageUrl: 'https://image.thehyundai.com/static/2/2/8/07/A2/hnm40A2078228_6_1600.jpg' }
+    // ];
 
     res.json({
       vision: {
