@@ -155,6 +155,7 @@ app.post('/api/full-process', async (req, res) => {
   const imageUrl = req.body.imageUrl;
 
   try {
+    console.log("start");
     const visionResult = await callVisionAPI(imageUrl);
     console.log(visionResult)
 
@@ -164,12 +165,14 @@ app.post('/api/full-process', async (req, res) => {
       .map(tag => tag.name);
     const caption = visionResult.description.captions[0]?.text || '';
 
-
     const refinedText = await callAzureOpenAI(tags, caption);
+    console.log("refinedText:"+refinedText);
 
     const embedding = await callEmbeddingAPI(refinedText);
+    console.log("embedding:"+embedding);
 
     const similarItems = await querySimilarItems(embedding);
+    console.log("similarItems:"+similarItems);
 
     // const similarItems = [
     //   { imageUrl: 'https://image.thehyundai.com/static/3/8/9/09/A2/hnm40A2099836_4_1600.jpg' },
